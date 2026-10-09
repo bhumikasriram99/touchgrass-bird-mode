@@ -42,7 +42,7 @@ Python backend (FastAPI)
 - [ ] Works with Wi-Fi off
 
 **Stretch (only if must-haves are done)**
-- [ ] Location and date filter (BirdNET supports lat/lon/week, which improves accuracy)
+- [x] Location and date filter (BirdNET supports lat/lon/week, which improves accuracy)
 - [ ] "Birds you might hear around here this week" to nudge people outside
 - [ ] Phone access over local network / phone-side inference
 
