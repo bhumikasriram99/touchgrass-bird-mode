@@ -1,8 +1,8 @@
-# 🌿 Touch Grass
+# 🌿 TouchGrass: Bird Mode
 
 **Hear a bird on the trail? Tap Listen, find out what it is, and put your phone away. Works with no signal.**
 
-Touch Grass is an offline bird call identifier built for a hackathon about using open-source AI to get people off screens and outside. Everything runs on your own device. The screen is on for about 10 seconds, and the rest of the time you're looking up.
+TouchGrass: Bird Mode is an offline bird call identifier built for a hackathon about using open-source AI to get people off screens and outside. Everything runs on your own device. The screen is on for about 10 seconds, and the rest of the time you're looking up.
 
 ## How it works
 

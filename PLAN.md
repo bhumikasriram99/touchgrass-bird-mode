@@ -1,4 +1,4 @@
-# Offline Bird Call Identifier
+# TouchGrass: Bird Mode
 
 ## Pitch
 Hear a bird on the trail, tap **Listen**, and in seconds know what it is, with no signal needed.

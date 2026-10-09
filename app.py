@@ -1,4 +1,4 @@
-"""Touch Grass bird ID: web server tying BirdNET, field notes, and the life list together.
+"""TouchGrass: Bird Mode web server. Ties BirdNET, field notes, and the life list together.
 
 Run with:  uv run uvicorn app:app --reload
 Then open: http://localhost:8000
@@ -19,7 +19,7 @@ import notes
 BASE = Path(__file__).parent
 LIFELIST_FILE = BASE / "data" / "lifelist.json"
 
-app = FastAPI(title="Touch Grass")
+app = FastAPI(title="TouchGrass: Bird Mode")
 
 
 def load_lifelist():
