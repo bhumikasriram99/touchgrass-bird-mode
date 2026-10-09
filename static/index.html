@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Touch Grass</title>
+<style>
+  :root {
+    --bg: #f4f1e8; --card: #fffdf7; --ink: #1f2a1f; --muted: #5e6b5c;
+    --accent: #3d7a3a; --accent-ink: #ffffff; --line: #ddd6c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141a14; --card: #1d251d; --ink: #e9efe6; --muted: #9fae9b;
+            --accent: #7cc576; --accent-ink: #0f170f; --line: #2f3a2e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0; font-size: 1.6rem; }
+  .tag { margin: 4px 0 24px; color: var(--muted); }
+  #listen { display: block; width: 180px; height: 180px; margin: 8px auto 12px;
+            border: none; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+            font-size: 1.3rem; font-weight: 700; cursor: pointer; }
+  #listen:disabled { opacity: .6; cursor: default; }
+  #listen.recording { animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.05); } }
+  #status { text-align: center; color: var(--muted); min-height: 1.5em; }
+  .upload { display: block; text-align: center; margin: 4px 0 24px; color: var(--muted); font-size: .9rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 20px; }
+  .card h2 { margin: 0; font-size: 1.4rem; }
+  .sci { color: var(--muted); font-style: italic; margin: 0 0 10px; }
+  .badge { display: inline-block; background: var(--accent); color: var(--accent-ink);
+           border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 700; margin-bottom: 8px; }
+  .others { color: var(--muted); font-size: .9rem; margin-top: 10px; }
+  .nudge { font-weight: 600; margin: 12px 0 0; }
+  h3 { margin: 0 0 8px; font-size: 1rem; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+  li span:last-child { color: var(--muted); white-space: nowrap; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🌿 Touch Grass</h1>
+  <p class="tag">Hear a bird? Tap, listen, look up. Works with no signal.</p>
+
+  <button id="listen">Listen</button>
+  <p id="status"></p>
+  <label class="upload">or <u>upload a recording</u>
+    <input id="file" type="file" accept="audio/*" hidden>
+  </label>
+
+  <section id="result" class="card" hidden></section>
+
+  <section class="card">
+    <h3>Your life list (<span id="count">0</span>)</h3>
+    <ul id="lifelist"></ul>
+  </section>
+</main>
+
+<script>
+const RECORD_SECONDS = 12;
+const listenBtn = document.getElementById("listen");
+const statusEl = document.getElementById("status");
+const resultEl = document.getElementById("result");
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function recordClip() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const recorder = new MediaRecorder(stream);
+  const chunks = [];
+  recorder.ondataavailable = e => chunks.push(e.data);
+  const stopped = new Promise(resolve => recorder.onstop = resolve);
+  recorder.start();
+  listenBtn.classList.add("recording");
+  for (let s = RECORD_SECONDS; s > 0; s--) {
+    listenBtn.textContent = s + "s";
+    statusEl.textContent = "Listening… hold still and point toward the sound";
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  recorder.stop();
+  await stopped;
+  stream.getTracks().forEach(t => t.stop());
+  listenBtn.classList.remove("recording");
+  return new Blob(chunks, { type: recorder.mimeType });
+}
+
+async function identify(blob, filename) {
+  listenBtn.disabled = true;
+  listenBtn.textContent = "…";
+  statusEl.textContent = "Identifying (all on this device)…";
+  try {
+    const form = new FormData();
+    form.append("audio", blob, filename);
+    const res = await fetch("/identify", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Something went wrong");
+    showResult(data);
+    statusEl.textContent = "";
+    loadLifelist();
+  } catch (err) {
+    statusEl.textContent = err.message;
+  } finally {
+    listenBtn.disabled = false;
+    listenBtn.textContent = "Listen";
+  }
+}
+
+function showResult(data) {
+  resultEl.hidden = false;
+  if (!data.matches.length) {
+    resultEl.innerHTML = `<h2>No bird heard clearly</h2>
+      <p>Try getting a little closer, or wait for the next call.</p>`;
+    return;
+  }
+  const [top, ...others] = data.matches;
+  resultEl.innerHTML = `
+    ${data.new_species ? '<span class="badge">New to your life list!</span>' : ""}
+    <h2>${escapeHtml(top.common_name)}</h2>
+    <p class="sci">${escapeHtml(top.scientific_name)} · ${Math.round(top.confidence * 100)}% sure</p>
+    <p>${escapeHtml(data.note)}</p>
+    ${others.length ? `<p class="others">Also possible: ${others.map(o =>
+        `${escapeHtml(o.common_name)} (${Math.round(o.confidence * 100)}%)`).join(", ")}</p>` : ""}
+    <p class="nudge">Now put the phone away and go find it 👀</p>`;
+}
+
+async function loadLifelist() {
+  const list = await (await fetch("/lifelist")).json();
+  const names = Object.keys(list).sort((a, b) => list[b].last_heard.localeCompare(list[a].last_heard));
+  document.getElementById("count").textContent = names.length;
+  document.getElementById("lifelist").innerHTML = names.length
+    ? names.map(n => `<li><span>${escapeHtml(n)}</span><span>×${list[n].times_heard}</span></li>`).join("")
+    : "<li><span>No birds yet. Go outside!</span></li>";
+}
+
+listenBtn.addEventListener("click", async () => {
+  try {
+    const blob = await recordClip();
+    await identify(blob, "clip.webm");
+  } catch (err) {
+    listenBtn.classList.remove("recording");
+    listenBtn.textContent = "Listen";
+    statusEl.textContent = "Microphone not available: " + err.message;
+  }
+});
+
+document.getElementById("file").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (file) identify(file, file.name);
+  e.target.value = "";
+});
+
+loadLifelist();
+</script>
+</body>
+</html>
