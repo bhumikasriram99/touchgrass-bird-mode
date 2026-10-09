@@ -8,6 +8,12 @@ from pathlib import Path
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 
+# BirdNET also detects these non-animal sounds; they shouldn't count as sightings.
+NOT_WILDLIFE = {
+    "Dog", "Engine", "Environmental", "Fireworks", "Gun", "Human non-vocal",
+    "Human vocal", "Human whistle", "Noise", "Power tools", "Siren",
+}
+
 _analyzer = None
 _lock = threading.Lock()  # the BirdNET model isn't safe to run from two requests at once
 
@@ -45,6 +51,8 @@ def identify(audio_path, lat=None, lon=None, min_conf=0.25, top_n=3):
     best = {}
     for d in recording.detections:
         name = d["common_name"]
+        if name in NOT_WILDLIFE:
+            continue
         if name not in best or d["confidence"] > best[name]["confidence"]:
             best[name] = {
                 "common_name": name,
