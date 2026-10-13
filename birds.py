@@ -48,19 +48,25 @@ def identify(audio_path, lat=None, lon=None, min_conf=0.25, top_n=3):
         wav = Path(tmp) / "clip.wav"
         to_wav(audio_path, wav)
         with _lock:
-            recording = Recording(_get_analyzer(), str(wav), **options)
+            analyzer = _get_analyzer()
+            # birdnetlib keeps the last location's species list on the shared analyzer;
+            # clear it so a request without location isn't filtered by an earlier one.
+            analyzer.custom_species_list = []
+            recording = Recording(analyzer, str(wav), **options)
             recording.analyze()
+            # detections reads the analyzer's species list lazily, so grab them under the lock.
+            detections = recording.detections
         samples, sr = librosa.load(wav, sr=None)
         peak = float(abs(samples).max()) if len(samples) else 0.0
         log.info(
             "identify: %s file, %.1fs audio, peak level %.3f, lat=%s lon=%s, raw detections: %s",
             Path(audio_path).suffix, len(samples) / sr, peak, lat, lon,
-            [(d["common_name"], round(d["confidence"], 2)) for d in recording.detections] or "none",
+            [(d["common_name"], round(d["confidence"], 2)) for d in detections] or "none",
         )
 
     # BirdNET scores every 3-second chunk; keep each species' best chunk.
     best = {}
-    for d in recording.detections:
+    for d in detections:
         name = d["common_name"]
         if name in NOT_WILDLIFE:
             continue
