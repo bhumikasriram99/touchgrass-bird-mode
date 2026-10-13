@@ -1,12 +1,16 @@
 """BirdNET wrapper: audio file in, top species out. Runs fully offline."""
+import logging
 import subprocess
 import tempfile
 import threading
 from datetime import datetime
 from pathlib import Path
 
+import librosa
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
+
+log = logging.getLogger("uvicorn.error")
 
 # BirdNET also detects these non-animal sounds; they shouldn't count as sightings.
 NOT_WILDLIFE = {
@@ -46,6 +50,13 @@ def identify(audio_path, lat=None, lon=None, min_conf=0.25, top_n=3):
         with _lock:
             recording = Recording(_get_analyzer(), str(wav), **options)
             recording.analyze()
+        samples, sr = librosa.load(wav, sr=None)
+        peak = float(abs(samples).max()) if len(samples) else 0.0
+        log.info(
+            "identify: %s file, %.1fs audio, peak level %.3f, lat=%s lon=%s, raw detections: %s",
+            Path(audio_path).suffix, len(samples) / sr, peak, lat, lon,
+            [(d["common_name"], round(d["confidence"], 2)) for d in recording.detections] or "none",
+        )
 
     # BirdNET scores every 3-second chunk; keep each species' best chunk.
     best = {}

@@ -114,14 +114,16 @@ async function recordClip() {
   return new Blob(chunks, { type: recorder.mimeType });
 }
 
-async function identify(blob, filename) {
+async function identify(blob, filename, useLocation) {
   listenBtn.disabled = true;
   listenBtn.textContent = "…";
   statusEl.textContent = "Identifying (all on this device)…";
   try {
     const form = new FormData();
     form.append("audio", blob, filename);
-    if (coords) {
+    // An uploaded file may have been recorded somewhere else, at another time of year,
+    // so only filter live recordings by where you are now.
+    if (coords && useLocation) {
       form.append("lat", coords.lat);
       form.append("lon", coords.lon);
     }
@@ -169,7 +171,7 @@ async function loadLifelist() {
 listenBtn.addEventListener("click", async () => {
   try {
     const blob = await recordClip();
-    await identify(blob, "clip.webm");
+    await identify(blob, "clip.webm", true);
   } catch (err) {
     listenBtn.classList.remove("recording");
     listenBtn.textContent = "Listen";
@@ -179,7 +181,7 @@ listenBtn.addEventListener("click", async () => {
 
 document.getElementById("file").addEventListener("change", e => {
   const file = e.target.files[0];
-  if (file) identify(file, file.name);
+  if (file) identify(file, file.name, false);
   e.target.value = "";
 });
 
