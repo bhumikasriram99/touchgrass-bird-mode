@@ -19,7 +19,6 @@
   main { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { margin: 0; font-size: 1.6rem; }
   .tag { margin: 4px 0 4px; color: var(--muted); }
-  #where { margin: 0 0 24px; color: var(--muted); font-size: .85rem; }
   #listen { display: block; width: 180px; height: 180px; margin: 8px auto 12px;
             border: none; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
             font-size: 1.3rem; font-weight: 700; cursor: pointer; }
@@ -46,7 +45,6 @@
 <main>
   <h1>🌿 TouchGrass: Bird Mode</h1>
   <p class="tag">Hear a bird? Tap, listen, look up. Works with no signal.</p>
-  <p id="where"></p>
 
   <button id="listen">Listen</button>
   <p id="status"></p>
@@ -67,28 +65,6 @@ const RECORD_SECONDS = 12;
 const listenBtn = document.getElementById("listen");
 const statusEl = document.getElementById("status");
 const resultEl = document.getElementById("result");
-const whereEl = document.getElementById("where");
-
-// Location narrows BirdNET to species that live nearby this time of year.
-// The last known spot is remembered so it still works with no signal.
-let coords = null;
-try { coords = JSON.parse(localStorage.getItem("coords")); } catch {}
-
-function showWhere() {
-  whereEl.textContent = coords
-    ? `📍 Only birds found near ${coords.lat}, ${coords.lon} this time of year`
-    : "📍 Location off: results may include birds from anywhere";
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(pos => {
-    // Rounded to ~1 km: plenty for BirdNET, kinder to privacy.
-    coords = { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2) };
-    try { localStorage.setItem("coords", JSON.stringify(coords)); } catch {}
-    showWhere();
-  }, showWhere, { timeout: 10000, maximumAge: 3600000 });
-}
-showWhere();
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -114,19 +90,13 @@ async function recordClip() {
   return new Blob(chunks, { type: recorder.mimeType });
 }
 
-async function identify(blob, filename, useLocation) {
+async function identify(blob, filename) {
   listenBtn.disabled = true;
   listenBtn.textContent = "…";
   statusEl.textContent = "Identifying (all on this device)…";
   try {
     const form = new FormData();
     form.append("audio", blob, filename);
-    // An uploaded file may have been recorded somewhere else, at another time of year,
-    // so only filter live recordings by where you are now.
-    if (coords && useLocation) {
-      form.append("lat", coords.lat);
-      form.append("lon", coords.lon);
-    }
     const res = await fetch("/identify", { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Something went wrong");
@@ -171,7 +141,7 @@ async function loadLifelist() {
 listenBtn.addEventListener("click", async () => {
   try {
     const blob = await recordClip();
-    await identify(blob, "clip.webm", true);
+    await identify(blob, "clip.webm");
   } catch (err) {
     listenBtn.classList.remove("recording");
     listenBtn.textContent = "Listen";
@@ -181,7 +151,7 @@ listenBtn.addEventListener("click", async () => {
 
 document.getElementById("file").addEventListener("change", e => {
   const file = e.target.files[0];
-  if (file) identify(file, file.name, false);
+  if (file) identify(file, file.name);
   e.target.value = "";
 });
 

@@ -10,7 +10,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 import birds
@@ -49,17 +49,13 @@ def index():
 
 
 @app.post("/identify")
-def identify(
-    audio: UploadFile = File(...),
-    lat: float | None = Form(None),
-    lon: float | None = Form(None),
-):
+def identify(audio: UploadFile = File(...)):
     suffix = Path(audio.filename or "").suffix or ".webm"
     with tempfile.NamedTemporaryFile(suffix=suffix) as upload:
         shutil.copyfileobj(audio.file, upload)
         upload.flush()
         try:
-            matches = birds.identify(upload.name, lat=lat, lon=lon)
+            matches = birds.identify(upload.name)
         except subprocess.CalledProcessError:
             raise HTTPException(400, "Couldn't read that audio. Try another recording.")
 

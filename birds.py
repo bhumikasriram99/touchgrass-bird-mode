@@ -3,7 +3,6 @@ import logging
 import subprocess
 import tempfile
 import threading
-from datetime import datetime
 from pathlib import Path
 
 import librosa
@@ -37,30 +36,21 @@ def to_wav(src, dst):
     )
 
 
-def identify(audio_path, lat=None, lon=None, min_conf=0.25, top_n=3):
+def identify(audio_path, min_conf=0.25, top_n=3):
     """Return up to top_n species, best confidence first. Empty list = no confident match."""
-    options = {"min_conf": min_conf}
-    if lat is not None and lon is not None:
-        # Location + date narrows the list to birds that live there this time of year.
-        options.update(lat=lat, lon=lon, date=datetime.now())
 
     with tempfile.TemporaryDirectory() as tmp:
         wav = Path(tmp) / "clip.wav"
         to_wav(audio_path, wav)
         with _lock:
-            analyzer = _get_analyzer()
-            # birdnetlib keeps the last location's species list on the shared analyzer;
-            # clear it so a request without location isn't filtered by an earlier one.
-            analyzer.custom_species_list = []
-            recording = Recording(analyzer, str(wav), **options)
+            recording = Recording(_get_analyzer(), str(wav), min_conf=min_conf)
             recording.analyze()
-            # detections reads the analyzer's species list lazily, so grab them under the lock.
             detections = recording.detections
         samples, sr = librosa.load(wav, sr=None)
         peak = float(abs(samples).max()) if len(samples) else 0.0
         log.info(
-            "identify: %s file, %.1fs audio, peak level %.3f, lat=%s lon=%s, raw detections: %s",
-            Path(audio_path).suffix, len(samples) / sr, peak, lat, lon,
+            "identify: %s file, %.1fs audio, peak level %.3f, raw detections: %s",
+            Path(audio_path).suffix, len(samples) / sr, peak,
             [(d["common_name"], round(d["confidence"], 2)) for d in detections] or "none",
         )
 

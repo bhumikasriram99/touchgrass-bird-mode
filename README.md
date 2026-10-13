@@ -7,7 +7,7 @@ TouchGrass: Bird Mode is an offline bird call identifier built for a hackathon a
 ## How it works
 
 1. **Listen:** record 12 seconds of birdsong in the browser (or upload a recording).
-2. **Identify:** [BirdNET](https://github.com/kahst/BirdNET-Analyzer), an open audio model from the Cornell Lab of Ornithology, picks out the species. Your location and the date narrow it to birds that actually live near you this time of year.
+2. **Identify:** [BirdNET](https://github.com/kahst/BirdNET-Analyzer), an open audio model from the Cornell Lab of Ornithology, picks out the species from its ~6,000-species global list.
 3. **Field note:** a local open-source LLM (Llama 3.1 8B via [Ollama](https://ollama.com)) writes 2–3 sentences on how to spot the bird.
 4. **Life list:** every species you hear is saved, so you have a reason to go find the next one.
 
@@ -40,7 +40,7 @@ uv sync                        # installs Python dependencies
 uv run uvicorn app:app
 ```
 
-Open **http://localhost:8000**, allow microphone and location access, and tap **Listen**.
+Open **http://localhost:8000**, allow microphone access, and tap **Listen**.
 
 No birds nearby? Play a bird call from another device, or upload a test recording:
 
@@ -58,7 +58,7 @@ uv run python notes.py                          # a sample field note
 
 ## Try it offline
 
-1. Open the app once with Wi-Fi on and allow location (it's remembered).
+1. Open the app once with Wi-Fi on.
 2. Turn Wi-Fi off.
 3. Reload, tap **Listen**: you still get the species, the field note, and a life list update.
 
@@ -67,7 +67,7 @@ uv run python notes.py                          # a sample field note
 - BirdNET scores each 3-second chunk; the app shows the top 3 species with confidence. Background noise lowers accuracy.
 - Non-wildlife sounds BirdNET detects (voices, dogs, engines…) are filtered out of results.
 - Field notes come from an 8B model and can occasionally get small details wrong. The species ID comes from BirdNET, not the LLM.
-- Location is rounded to ~1 km before use and never leaves the device.
+- There's no location filter, so results can include species from anywhere in the world.
 
 ## Credits and licenses
 
